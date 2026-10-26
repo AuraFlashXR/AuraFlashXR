@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 <img src="https://raw.githubusercontent.com/BarthiGame/AirFrameXR-REMIX-BarThi/main/docs/images/banner.png" alt="AirFrameXR REMIX BarThi Banner" width="720" />
 
@@ -55,7 +55,7 @@ This **REMIX** edition is built upon the extraordinary engineering of the open-s
 <img src="https://raw.githubusercontent.com/BarthiGame/AirFrameXR-REMIX-BarThi/main/docs/images/screen_launcher.png" alt="AirFrameXR Launcher" width="780" />
 
 ### 📡 Live Streamer & Real-Time Telemetry (`streamer.exe`)
-<img src="https://raw.githubusercontent.com/BarthiGame/AirFrameXR-REMIX-BarThi/main/docs/images/screen_streamer.png" alt="AirFrameXR Streamer" width="780" />
+<img src="https://raw.githubusercontent.com/BarthiGame/AirFrameXR-REMIX-BarThi/main/docs/images/screen_streamer_steamvr.png" alt="AirFrameXR Streamer" width="780" />
 
 ### ⚙️ Unlocked Settings & Audio/NVENC Tuning (`configure.exe`)
 <img src="https://raw.githubusercontent.com/BarthiGame/AirFrameXR-REMIX-BarThi/main/docs/images/screen_configure.png" alt="AirFrameXR Configuration" width="780" />
