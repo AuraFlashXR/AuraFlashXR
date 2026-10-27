@@ -2,10 +2,10 @@
 
 <img src="https://raw.githubusercontent.com/BarthiGame/AirFrameXR-REMIX-BarThi/main/docs/images/banner.png" alt="AirFrameXR REMIX BarThi Banner" width="720" />
 
-# 🚀 AirFrameXR REMIX BarThi `v0.2-ALPHA`
+# 🚀 AirFrameXR REMIX BarThi `v0.3-ALPHA`
 
-**Ultra-low latency Direct OpenXR & SteamVR PCVR streaming runtime for Meta Quest 3 / 3S / Pro / 2.**  
-Bypasses compositor overhead with hardware-tuned NVENC multi-slice encoding, unified SteamVR driver telemetry, 1-click ADB/APK deployment, automated microphone passthrough (`AirFrameXR-MIC`), and a modernized Dark Mode UI.
+**Ultra-low latency Direct OpenXR & SteamVR PCVR streaming runtime for Meta Quest 3 / 3S / Pro / 2.**
+Bypasses compositor overhead with hardware-tuned NVENC multi-slice encoding, unified SteamVR driver telemetry, 1-click ADB/APK deployment, automated microphone passthrough (`AirFrameXR-MIC`), and a modernized Dark Mode UI — now with a **native Rust OpenXR Quest client (v0.2, dual OpenGL / Vulkan builds)** and a unified **TOOLBOX OPENXR** launcher panel.
 
 [![Latest Release](https://img.shields.io/github/v/release/BarthiGame/AirFrameXR-REMIX-BarThi?include_prereleases&style=for-the-badge&color=0e62b2)](https://github.com/BarthiGame/AirFrameXR-REMIX-BarThi/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11%20x64-0078D6?style=for-the-badge&logo=windows)](https://github.com/BarthiGame/AirFrameXR-REMIX-BarThi/releases)
@@ -24,26 +24,28 @@ This **REMIX** edition is built upon the extraordinary engineering of the open-s
 
 ---
 
-## ✨ What's New in `v0.2-ALPHA`
+## ✨ What's New in `v0.3-ALPHA`
 
-### 🔗 1. Unified `session.json` & Seamless SteamVR Coexistence
-* **Single Unified Configuration (`config\session.json`)**: Both the Direct OpenXR host (`airframexr_host.exe`) and the official ALVR OpenVR driver (`driver_airframexr.dll`) now share a single configuration file (`config\session.json`) and unified log directory (`logs\`). Any setting changed in `configure.exe` or `streamer.exe` immediately applies to both Direct OpenXR and SteamVR modes.
-* **Zero Port 8082 / 9943 / 9944 Conflicts**:
-  * Automatic port fallback (`8082..8086`) eliminates the `ALVR panicked: error binding to 0.0.0.0:8082 (os error 10048)` crash dialog.
-  * Resilient UDP `9943` discovery socket retry loop ensures instant handover when switching between AirFrameXR Direct OpenXR and SteamVR (`vrserver.exe`).
-* **Real-Time SteamVR Telemetry in `streamer.exe`**:
-  * When SteamVR is active, `streamer.exe` automatically yields UDP ports to `driver_airframexr.dll` and displays live 500ms telemetry directly in the dashboard tiles: **Server/Client FPS, Bitrate (Mbps), Total Latency, Encode / Network / Decode / VSync breakdown, Packet Loss, and Headset Battery %**.
+### 🦀 1. Native Rust OpenXR Quest Client — Dual GPU Backend Builds
+* **Pure-Rust OpenXR client** (`aarch64-linux-android`, no JVM/ART) compiled in two separate signed APKs so you can A/B test graphics backends on the same headset:
+  * `AirFrameXR-REMIX-BarThi-v0.2-ALPHA-OpenGL.apk` — OpenGL ES 3.2 backend (`XR_KHR_opengl_es_enable`), recommended for maximum stability.
+  * `AirFrameXR-REMIX-BarThi-v0.2-ALPHA-VULKAN.apk` — Vulkan backend (`XR_KHR_vulkan_enable2`, `VK_KHR_multiview`), experimental lower-latency path.
+* **Extreme refresh-rate unlock** — the client enumerates every refresh rate the headset driver exposes (`xrEnumerateDisplayRefreshRatesFB`) and requests the highest one with a safe fallback chain: **207 Hz → 144 Hz → 120 Hz** (frame budgets 4.83 / 6.94 / 8.33 ms).
+* **Performance lock** — `XR_EXT_performance_settings` pins CPU & GPU to `Boost`/`SustainedHigh` for the whole session; `XR_FB_space_warp` support is prepared but off by default.
+* **Compiler tuned for Snapdragon XR2 Gen 2** — `lto = "fat"`, `codegen-units = 1`, `panic = "abort"`, `strip = "symbols"`, plus `target-cpu=cortex-a78` and `+neon` so all encoding hot paths emit SIMD NEON instructions.
 
-### 🎮 2. Fixed Direct OpenXR & Oculus (`LibOVRRT64_1`) Game Detection
-* Synchronized shared memory and named event IPC prefixes (`AirFrameXR_*`) across `openxr_airframexr.dll`, `LibOVRRT64_1.dll`, `mirrordesktop.exe`, and `airframexr_host.exe` so native OpenXR and Oculus games are immediately detected on launch.
+### 🛠️ 2. Fixed APK Packaging (Failure [-124] resolved)
+* Quest-side installs previously failed with `Failure [-124: Failed parse during installPackageLI: Targeting R+ (version 30 and above) requires the resources.arsc of installed APKs to be stored uncompressed and aligned on a 4-byte boundary]`.
+* Every shipped APK is now rebuilt with `resources.arsc` **STORED** (uncompressed) and 4-byte aligned, then signed **v1 + v2 + v3** (`apksigner`) — installs cleanly via ADB, SideQuest, and the built-in installer.
 
-### 🛠️ 3. 1-Click Runtime Switcher, ADB USB & Quest APK Installer
-* **Instant Runtime Switching**: Switch between **AirFrameXR (Direct OpenXR)** and **SteamVR + AirFrameXR Driver** (for Anti-Cheat / BattlEye titles) with a single click from both the Launcher and Streamer windows.
-* **1-Click ADB (USB) & APK Installer**: Built-in `ADBForwarder` toggle for wired USB streaming at up to 500+ Mbps and 1-click Quest APK installation (`install_apk_quest.bat`).
-* **Automated Virtual Microphone (`AirFrameXR-MIC`)**: 1-click setup and automatic Windows registry endpoint naming for zero-latency Quest microphone passthrough.
+### 🎛️ 3. TOOLBOX OPENXR — Unified Launcher Panel
+* The main `launcher.exe` now embeds a **TOOLBOX OPENXR** status panel: one glance shows whether your games will use AirFrameXR (Direct OpenXR) or SteamVR + the AirFrameXR driver, with the status message and all action buttons grouped at the bottom of the panel.
+* **Universal ADB installer** (`tools\install_apk_quest.bat`): auto-cleans stale TCP connections (`adb disconnect`), detects the headset serial automatically, always installs with an explicit `-s <serial>`, handles `unauthorized` state with clear guidance, and supports multiple connected headsets with a numbered picker.
 
-### 🎨 4. Redesigned Dark Mode UI & Multilingual Support (EN / FR)
-* Complete Dark Theme overhaul across all tools (`launcher.exe`, `streamer.exe`, `configure.exe`, `performance.exe`) with refined DPI scaling, non-cropped Haptics/Controller layouts, interactive `session.json` key inspector, and full English & French localization.
+### 🔊 4. Audio, Telemetry & UI (carried over from v0.2)
+* **AAudio ultra-low-latency path** — `PerformanceMode::LowLatency` + `SharingMode::Exclusive` on the Quest client.
+* **Live 500 ms SteamVR telemetry** in `streamer.exe`: Server/Client FPS, bitrate, total latency, encode/network/decode/vsync breakdown, packet loss, headset battery %.
+* **Dark Mode UI** across `launcher.exe`, `streamer.exe`, `configure.exe`, `performance.exe` with full **English & French** localization.
 
 ---
 
@@ -51,9 +53,9 @@ This **REMIX** edition is built upon the extraordinary engineering of the open-s
 
 <div align="center">
 
-### 🎛️ 1. Main Launcher (`launcher.exe`)
+### 🎛️ 1. Main Launcher (`launcher.exe`) — TOOLBOX OPENXR Panel
 *1-Click OpenXR / SteamVR Runtime Switcher, USB ADB Forwarder, Quest APK Installer & Language Selector*
-<img src="https://raw.githubusercontent.com/BarthiGame/AirFrameXR-REMIX-BarThi/main/docs/images/en_launcher.png" alt="AirFrameXR Main Launcher (English)" width="800" />
+<img src="https://raw.githubusercontent.com/BarthiGame/AirFrameXR-REMIX-BarThi/main/docs/images/en_launcher_toolbox_v03.png" alt="AirFrameXR Main Launcher — TOOLBOX OPENXR (English)" width="800" />
 
 ---
 
@@ -122,11 +124,12 @@ This **REMIX** edition is built upon the extraordinary engineering of the open-s
 ## 📦 Installation & Quick Start
 
 1. **Download the Release Assets** from the [**Releases Page**](https://github.com/BarthiGame/AirFrameXR-REMIX-BarThi/releases):
-   * `AirFrameXR-REMIX-BarThi-v0.2-Release.zip` (Portable Windows x64 Runtime)
-   * `AirFrameXR-REMIX-BarThi.apk` (Meta Quest Client APK)
-2. **Extract** `AirFrameXR-REMIX-BarThi-v0.2-Release.zip` to a folder on your PC.
+   * `AirFrameXR-REMIX-BarThi-v0.3-Release.zip` (Portable Windows x64 Runtime)
+   * `AirFrameXR-REMIX-BarThi-v0.2-ALPHA-OpenGL.apk` (Meta Quest Client — OpenGL ES 3.2, Recommended)
+   * `AirFrameXR-REMIX-BarThi-v0.2-ALPHA-VULKAN.apk` (Meta Quest Client — Vulkan, Experimental)
+2. **Extract** `AirFrameXR-REMIX-BarThi-v0.3-Release.zip` to a folder on your PC.
 3. **Launch** `AirFrameXR.exe` (or `bin\launcher.exe`):
-   * Connect your Meta Quest via USB and click **Install APK (Quest)** (or sideload `AirFrameXR-REMIX-BarThi.apk` via ADB/SideQuest).
+   * Connect your Meta Quest via USB and click **Install APK (Quest)** — or sideload either APK via ADB/SideQuest (the universal installer handles serial selection and `unauthorized` state for you).
    * Click **Enable ADB (USB)** for wired ultra-high bitrate streaming, or connect wirelessly over Wi-Fi 6/6E/7.
    * Choose **Activate AirFrameXR** (Direct OpenXR) or **Enable SteamVR** depending on your game, then launch **Streamer**!
 
