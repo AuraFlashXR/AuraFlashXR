@@ -27,13 +27,13 @@ This **AuraFlashXR** edition is built upon the extraordinary engineering of the 
 ## 📸 Interface Showcase
 
 
-</div>
+! UNDER CONSTRUCTION !
 
 ---
 
 ## 📦 Installation & Quick Start
 
-
+! UNDER CONSTRUCTION !
 
 ---
 
