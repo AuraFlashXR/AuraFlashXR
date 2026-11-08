@@ -1,0 +1,45 @@
+{
+  "_comment": "Copy to private/personal_config.json (gitignored). `AuraFlashXR_PERSONAL=1 python3 harness/run.py build ... package` then ships these values in the portable folder (zip suffix -personal). Dotted keys are set inside session.default.json; `auraflashxr` becomes config\\auraflashxr.json (the host/GUI settings). Not for GitHub releases. `session_merge` is deep-merged into session.default.json (the paired headset: an entry with an empty hostname is a headset added by IP address); `auraflashxr.headset` is the headset the runtime window connects to without asking. Optional `extra_files` (absent by default; the streamer now routes audio and sets the power plan itself) are files on the build PC copied next to AuraFlashXR.exe in the package (your launcher .bat and the tools it calls; keep them in a folder that is not the install folder, with a backup in private\\personal_files; a personal build FAILS if one listed is missing).",
+  "version_suffix": "-personal",
+  "session": {
+    "session_settings.video.foveated_encoding.enabled": true,
+    "openvr_config.enable_foveated_encoding": true,
+    "session_settings.video.bitrate.mode.ConstantMbps": 300,
+    "session_settings.video.preferred_fps": 90.0,
+    "session_settings.video.transcoding_view_resolution.Absolute.width": 3552,
+    "session_settings.video.transcoding_view_resolution.Absolute.height.content": 3200,
+    "session_settings.video.emulated_headset_view_resolution.Absolute.width": 3552,
+    "session_settings.video.emulated_headset_view_resolution.Absolute.height.content": 3200
+  },
+  "auraflashxr": {
+    "video": {
+      "encode_profile": "foveated",
+      "idle_rgb": "00ff00"
+    },
+    "debug": true,
+    "system": {
+      "power_plan": "9cef84cd-d1dc-4fca-a325-b3a4282b2757"
+    },
+    "display": {
+      "gamma": 1.2
+    },
+    "headset": {
+      "hostname": "",
+      "name": "Apple Vision Pro",
+      "ip": "192.168.1.x"
+    }
+  },
+  "session_merge": {
+    "client_connections": {
+      "": {
+        "display_name": "Apple Headset",
+        "current_ip": "192.168.1.x",
+        "manual_ips": [
+          "192.168.1.x"
+        ],
+        "trusted": true,
+        "connection_state": "Disconnected"
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+# Sorties de build et artefacts locaux
+out/
+_tmp/
+build/
+logs/
+*.log
+*.zip
+*.pdb
+*.user
+*.suo
+.vs/
+obj/
+bin/
+target/
+
+# Atelier de build local (miroir du workspace Rust et sources tierces VDXR)
+src/
+
+# Binaires tiers embarques (regenere par le build)
+tools/auraflashxr/bin/
+tools/adbforwarder/
+tools/vbcable/
+tools/driver_openvr/bin/
+tools/APK/*.apk
+tools/bench/
+docs/images/background/
+docs/images/police/
+
+# Divers
+Thumbs.db
+desktop.ini

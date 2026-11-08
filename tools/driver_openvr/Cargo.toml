@@ -1,0 +1,33 @@
+[package]
+name = "auraflashxr_server_openvr"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors = ["auraflashxr-org", "Valve Corporation"]
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+gpl = [] # Enable for FFmpeg support on Windows. Always enabled on Linux
+
+[dependencies]
+auraflashxr_common.workspace = true
+auraflashxr_filesystem.workspace = true
+auraflashxr_packets.workspace = true
+auraflashxr_server_core.workspace = true
+auraflashxr_server_io.workspace = true
+auraflashxr_session.workspace = true
+
+serde_json = "1"
+sysinfo = "0.33"
+
+[build-dependencies]
+auraflashxr_filesystem = { path = "../filesystem" }
+bindgen = "0.71"
+cc = { version = "1", features = ["parallel"] }
+walkdir = "2"
+
+[target.'cfg(target_os = "linux")'.build-dependencies]
+pkg-config = "0.3"

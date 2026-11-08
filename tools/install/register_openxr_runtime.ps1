@@ -1,0 +1,156 @@
+<#
+.SYNOPSIS
+  Registers (or with -Unregister, unregisters) the AuraFlashXR folder this script sits in as the Windows OpenXR runtime.
+
+.DESCRIPTION
+  AuraFlashXR is portable: unzip it anywhere; the launcher (AuraFlashXR.exe) runs this script, with a UAC prompt, from its OpenXR runtime button. This sets
+  HKLM\SOFTWARE\Khronos\OpenXR\1\ActiveRuntime to <package>\bin\virtualdesktop-openxr.json (the previous runtime is saved and put
+  back by -Unregister), lists it under AvailableRuntimes, and adds an inbound firewall rule for <package>\bin\auraflashxr_host.exe
+  (skip with -NoFirewall). Nothing is copied anywhere. Moving the folder: run it again from the new place.
+  Earlier installs of this project (AuraFlashXR, or AuraFlashXR in Program Files) are taken over: their saved previous runtime,
+  their host config (paired headset) and their registry/firewall entries; their files are deleted only if their install marker
+  is there. -RegistryRoot / -StateKey / -Legacy* exist for the tests (a throwaway HKCU key).
+#>
+[CmdletBinding(SupportsShouldProcess = $true)]
+param(
+    [switch]$Unregister,
+    [switch]$NoFirewall,
+    [switch]$Quiet,              # no pause (used by AuraFlashXR.exe)
+    [string]$InstallDir = '',
+    [string]$RegistryRoot = 'HKLM:\SOFTWARE\Khronos\OpenXR\1',
+    [string]$StateKey = 'HKLM:\SOFTWARE\AuraFlashXR',
+    [string]$LegacyStateKey = 'HKLM:\SOFTWARE\AuraFlashXR',
+    [string[]]$OldInstallDirs = @(),
+    [string[]]$OldConfigDirs = @()
+)
+
+$ErrorActionPreference = 'Stop'
+# the script lives in <package>\bin\: the package root is its parent (an explicit -InstallDir is taken as the root)
+if (-not $InstallDir) { $InstallDir = Split-Path -Parent $(if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }) }
+$InstallDir = (Resolve-Path $InstallDir).Path.TrimEnd('\')
+$pf = if ($env:ProgramFiles) { $env:ProgramFiles } else { 'C:\Program Files' }
+$lad = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $env:USERPROFILE 'AppData\Local' }
+if (-not $OldInstallDirs) { $OldInstallDirs = @((Join-Path $pf 'AuraFlashXR'), (Join-Path $pf 'AuraFlashXR')) }
+if (-not $OldConfigDirs) { $OldConfigDirs = @((Join-Path $lad 'AuraFlashXR\host'), (Join-Path $lad 'AuraFlashXR\host')) }
+$Manifest = Join-Path $InstallDir 'bin\virtualdesktop-openxr.json'
+$HostExe = Join-Path $InstallDir 'bin\auraflashxr_host.exe'
+$FirewallName = 'AuraFlashXR (auraflashxr_host)'
+$OldFirewallNames = @('AuraFlashXR streamer (auraflashxr_host)', 'AuraFlashXR streamer (auraflashxr_host)')
+
+function Done($code) { if (-not $Quiet) { Read-Host 'Press Enter to close' | Out-Null }; exit $code }
+
+# A manifest that belongs to this project (any folder, any earlier name): never saved as "the runtime to restore".
+function Test-Ours([string]$path) {
+    if (-not $path) { return $false }
+    if ($path -ieq $Manifest) { return $true }
+    $dir = Split-Path -Parent $path
+    if (-not $dir) { return $false }
+    if ((Test-Path (Join-Path $dir 'auraflashxr_host.exe')) -or (Test-Path (Join-Path (Split-Path -Parent $dir) 'host\auraflashxr_host.exe')) -or (Test-Path (Join-Path (Split-Path -Parent $dir) 'bin\auraflashxr_host.exe'))) { return $true }
+    foreach ($d in $OldInstallDirs) { if ($path -like "$d\*") { return $true } }
+    return $false
+}
+
+function Get-Active { if (Test-Path $RegistryRoot) { (Get-ItemProperty -Path $RegistryRoot -Name ActiveRuntime -ErrorAction SilentlyContinue).ActiveRuntime } }
+
+try {
+    if (-not (Test-Path $Manifest)) { throw "bin\virtualdesktop-openxr.json not found in ($InstallDir)" }
+
+    if (-not $Unregister) {
+        # ---- the runtime to put back on -Unregister
+        $active = Get-Active
+        $saved = $null
+        if (Test-Path $StateKey) { $saved = (Get-ItemProperty -Path $StateKey -Name PreviousActiveRuntime -ErrorAction SilentlyContinue).PreviousActiveRuntime }
+        if ($null -eq $saved -and (Test-Path $LegacyStateKey)) { $saved = (Get-ItemProperty -Path $LegacyStateKey -Name PreviousActiveRuntime -ErrorAction SilentlyContinue).PreviousActiveRuntime }
+        $prev = if (Test-Ours $active) { $saved } else { $active }
+        if ($PSCmdlet.ShouldProcess($RegistryRoot, "ActiveRuntime = $Manifest (previous: '$prev')")) {
+            # NB: never `New-Item -Force` an existing registry key: it clears the key's values (and would wipe other runtimes)
+            if (-not (Test-Path $StateKey)) { New-Item -Path $StateKey -Force | Out-Null }
+            New-ItemProperty -Path $StateKey -Name PreviousActiveRuntime -Value $(if ($prev) { $prev } else { '' }) -PropertyType String -Force | Out-Null
+            New-ItemProperty -Path $StateKey -Name InstallDir -Value $InstallDir -PropertyType String -Force | Out-Null
+            if (-not (Test-Path $RegistryRoot)) { New-Item -Path $RegistryRoot -Force | Out-Null }
+            New-ItemProperty -Path $RegistryRoot -Name ActiveRuntime -Value $Manifest -PropertyType String -Force | Out-Null
+            if (-not (Test-Path "$RegistryRoot\AvailableRuntimes")) { New-Item -Path "$RegistryRoot\AvailableRuntimes" | Out-Null }
+            # our other (older, moved) manifests leave the list; other runtimes stay
+            foreach ($name in (Get-Item "$RegistryRoot\AvailableRuntimes").Property) {
+                if ($name -ine $Manifest -and (Test-Ours $name)) { Remove-ItemProperty -Path "$RegistryRoot\AvailableRuntimes" -Name $name }
+            }
+            New-ItemProperty -Path "$RegistryRoot\AvailableRuntimes" -Name $Manifest -Value 0 -PropertyType DWord -Force | Out-Null
+            if (Test-Path $LegacyStateKey) { Remove-Item -Path $LegacyStateKey -Recurse -Force }
+            Write-Host "OpenXR runtime: $Manifest"
+            Write-Host "previous runtime (restored by the launcher's switch back): '$prev'"
+        }
+
+        # ---- host config of an earlier install: keep the paired headset
+        $cfg = Join-Path $InstallDir 'config'
+        if (-not (Test-Path (Join-Path $cfg 'session.json'))) {
+            foreach ($old in $OldConfigDirs) {
+                if ((Test-Path (Join-Path $old 'session.json')) -and $PSCmdlet.ShouldProcess($cfg, "take over the host config from $old")) {
+                    New-Item -ItemType Directory -Force -Path $cfg | Out-Null
+                    Copy-Item (Join-Path $old 'session.json') (Join-Path $cfg 'session.json')
+                    foreach ($v in 'auraflashxr_views.json', 'auraflashxr_views.json') {
+                        if (Test-Path (Join-Path $old $v)) { Copy-Item (Join-Path $old $v) (Join-Path $cfg 'auraflashxr_views.json') }
+                    }
+                    Write-Host "host config taken over from $old"
+                    break
+                }
+            }
+        }
+
+        # ---- firewall (inbound: discovery UDP 9943, stream UDP 9944)
+        foreach ($n in @($FirewallName) + $OldFirewallNames) {
+            $r = Get-NetFirewallRule -DisplayName $n -ErrorAction SilentlyContinue
+            if ($r -and $PSCmdlet.ShouldProcess($n, 'remove the old firewall rule')) { $r | Remove-NetFirewallRule }
+        }
+        if (-not $NoFirewall -and $PSCmdlet.ShouldProcess($HostExe, 'add inbound firewall rule')) {
+            New-NetFirewallRule -DisplayName $FirewallName -Direction Inbound -Action Allow -Program $HostExe -Profile Any | Out-Null
+            Write-Host "firewall: inbound allowed for $HostExe"
+        }
+
+        # ---- leftovers of the installer era: logon tasks, Program Files copies (only with their install marker)
+        foreach ($t in 'AuraFlashXR Streamer', 'AuraFlashXR Streamer') {
+            if ((Get-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue) -and $PSCmdlet.ShouldProcess($t, 'remove the old logon task')) {
+                Stop-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue
+                Unregister-ScheduledTask -TaskName $t -Confirm:$false
+            }
+        }
+        foreach ($d in $OldInstallDirs) {
+            $marked = (Test-Path (Join-Path $d 'auraflashxr-install.json')) -or (Test-Path (Join-Path $d 'auraflashxr-install.json'))
+            if ($marked -and ($d -ine $InstallDir) -and $PSCmdlet.ShouldProcess($d, 'delete the old installed copy (its install marker is present)')) {
+                Remove-Item -Path $d -Recurse -Force
+                Write-Host "old copy removed: $d"
+            }
+        }
+        Write-Host 'done.'
+        Done 0
+    }
+
+    # ---------------------------------------------------------------- unregister
+    if ($PSCmdlet.ShouldProcess($RegistryRoot, 'restore the previous ActiveRuntime and drop our AvailableRuntimes entry')) {
+        $active = Get-Active
+        if ($active -ieq $Manifest) {
+            $prev = $null
+            if (Test-Path $StateKey) { $prev = (Get-ItemProperty -Path $StateKey -Name PreviousActiveRuntime -ErrorAction SilentlyContinue).PreviousActiveRuntime }
+            if (-not $prev -and (Test-Path "$RegistryRoot\AvailableRuntimes")) {
+                $prev = (Get-Item "$RegistryRoot\AvailableRuntimes").Property | Where-Object { $_ -ine $Manifest -and -not (Test-Ours $_) -and (Test-Path $_) } | Select-Object -First 1
+            }
+            if (-not $prev) {
+                $steamvr = 'C:\Program Files (x86)\Steam\steamapps\common\SteamVR\steamxr_win64.json'
+                if (Test-Path $steamvr) { $prev = $steamvr }
+            }
+            if ($prev) { Set-ItemProperty -Path $RegistryRoot -Name ActiveRuntime -Value $prev; Write-Host "ActiveRuntime restored: $prev" }
+            else { Remove-ItemProperty -Path $RegistryRoot -Name ActiveRuntime -ErrorAction SilentlyContinue; Write-Host 'ActiveRuntime removed (there was none before)' }
+        } else {
+            Write-Host "ActiveRuntime is '$active', not this folder: left alone"
+        }
+        if (Test-Path "$RegistryRoot\AvailableRuntimes") { Remove-ItemProperty -Path "$RegistryRoot\AvailableRuntimes" -Name $Manifest -ErrorAction SilentlyContinue }
+        if (Test-Path $StateKey) { Remove-Item -Path $StateKey -Recurse -Force }
+    }
+    if (-not $NoFirewall -and $PSCmdlet.ShouldProcess($FirewallName, 'remove firewall rule')) {
+        Get-NetFirewallRule -DisplayName $FirewallName -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+    }
+    Write-Host 'unregistered (the folder, its config and logs are left as they are).'
+    Done 0
+} catch {
+    Write-Host "ERROR: $_" -ForegroundColor Red
+    Done 1
+}

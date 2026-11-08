@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Scoped helper for the Windows builder (the PC that builds and runs everything; see docs/DEVELOPMENT.md).
+# Host from $AuraFlashXR_BUILDER or tools/builder.local (AuraFlashXR_BUILDER=user@host, not committed), key-based auth only
+# (BatchMode), working dir %USERPROFILE%\openxr on the builder.
+#
+#   tools/builder.sh run  'cmd /c command'            run a cmd.exe command on the builder
+#   tools/builder.sh ps   script.ps1 [args...]        copy a local PowerShell script to ~/openxr/_tmp and run it
+#   tools/builder.sh put  local_path remote_rel_path  copy file/dir to ~/openxr/<remote_rel_path>
+#   tools/builder.sh get  remote_rel_path local_path  copy file/dir from ~/openxr/<remote_rel_path>
+#
+# Commands that look destructive are refused unless --allow-destructive is the first argument.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+LOCAL="$HERE/builder${AuraFlashXR_PROFILE:+.$AuraFlashXR_PROFILE}.local"   # AuraFlashXR_PROFILE=5090 -> tools/builder.5090.local (a second machine)
+if [[ -z "${AuraFlashXR_BUILDER:-}" && -f "$LOCAL" ]]; then
+  AuraFlashXR_BUILDER="$(sed -n 's/^AuraFlashXR_BUILDER=//p' "$LOCAL" | head -1)"
+fi
+if [[ -z "${AuraFlashXR_BUILDER_ROOT:-}" && -f "$LOCAL" ]]; then
+  AuraFlashXR_BUILDER_ROOT="$(sed -n 's/^AuraFlashXR_BUILDER_ROOT=//p' "$LOCAL" | head -1)"
+fi
+ROOTNAME="${AuraFlashXR_BUILDER_ROOT:-openxr}"    # the working folder under %USERPROFILE% (default openxr; e.g. AuraFlashXR to work in a git clone)
+HOST="${AuraFlashXR_BUILDER:?set AuraFlashXR_BUILDER=user@host (or write it to tools/builder.local), see docs/DEVELOPMENT.md}"
+SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=30 -o LogLevel=ERROR -o ControlMaster=auto -o "ControlPath=/tmp/auraflashxr-ssh-%C" -o ControlPersist=10m)   # one multiplexed connection: some sshd setups drop fresh ones
+NOISE='post-quantum|store now, decrypt later|openssh.com/pq|server may need to be upgraded|^\*\* *$'
+
+allow_destructive=0
+if [[ "${1:-}" == "--allow-destructive" ]]; then allow_destructive=1; shift; fi
+mode="${1:-}"; shift || true
+
+guard() {
+  local text="$1"
+  if [[ $allow_destructive -eq 0 ]] && echo "$text" | grep -qiE '(^|[^a-z])(rmdir|rd |del |erase |format |shutdown|restart-computer|remove-item|winget +(uninstall|remove)|reg +delete|diskpart|bcdedit|net +user|icacls|takeown)'; then
+    echo "builder.sh: refused (looks destructive). Re-run with --allow-destructive after the user confirms." >&2
+    exit 3
+  fi
+}
+
+filter() { grep -vE "$NOISE" || true; }
+
+case "$mode" in
+  run)
+    cmd="${1:?usage: builder.sh run '<cmd>'}"
+    guard "$cmd"
+    # the working folder is created on first use (fresh builder, or after the user removed it)
+    ssh "${SSH_OPTS[@]}" "$HOST" "(if not exist %USERPROFILE%\\$ROOTNAME mkdir %USERPROFILE%\\$ROOTNAME) & cd /d %USERPROFILE%\\$ROOTNAME && set AuraFlashXR_ROOT=%USERPROFILE%\\$ROOTNAME&& $cmd" 2>&1 | filter
+    ;;
+  ps)
+    script="${1:?usage: builder.sh ps script.ps1 [args]}"; shift
+    [[ -f "$script" ]] || { echo "no such script: $script" >&2; exit 2; }
+    guard "$(cat "$script")"
+    ssh "${SSH_OPTS[@]}" "$HOST" "if not exist %USERPROFILE%\\$ROOTNAME\\_tmp mkdir %USERPROFILE%\\$ROOTNAME\\_tmp" 2>&1 | filter   # mkdir creates openxr too
+    base="$(basename "$script")"
+    scp "${SSH_OPTS[@]}" "$script" "$HOST:$ROOTNAME/_tmp/$base" 2>&1 | filter
+    ssh "${SSH_OPTS[@]}" "$HOST" "cd /d %USERPROFILE%\\$ROOTNAME && set AuraFlashXR_ROOT=%USERPROFILE%\\$ROOTNAME&& powershell -NoProfile -ExecutionPolicy Bypass -File _tmp\\$base $*" 2>&1 | filter
+    ;;
+  put)
+    src="${1:?usage: put local remote_rel}"; dst="${2:?usage: put local remote_rel}"
+    [[ "$dst" != /* && "$dst" != *..* && "$dst" != *:* ]] || { echo "remote path must be relative to ~/openxr" >&2; exit 2; }
+    ssh "${SSH_OPTS[@]}" "$HOST" "if not exist %USERPROFILE%\\$ROOTNAME mkdir %USERPROFILE%\\$ROOTNAME" 2>&1 | filter
+    scp -r "${SSH_OPTS[@]}" "$src" "$HOST:$ROOTNAME/$dst" 2>&1 | filter
+    ;;
+  get)
+    src="${1:?usage: get remote_rel local}"; dst="${2:?usage: get remote_rel local}"
+    [[ "$src" != /* && "$src" != *..* && "$src" != *:* ]] || { echo "remote path must be relative to ~/openxr" >&2; exit 2; }
+    scp -r "${SSH_OPTS[@]}" "$HOST:$ROOTNAME/$src" "$dst" 2>&1 | filter
+    ;;
+  *)
+    sed -n '2,12p' "$0"; exit 2 ;;
+esac

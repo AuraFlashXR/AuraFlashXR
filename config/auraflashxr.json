@@ -1,0 +1,68 @@
+{
+  "video": {
+    "idle_rgb": "000000",
+    "encode_profile": "foveated",
+    "frame_gen": false,
+    "frame_gen_rate": "two_thirds",
+    "frame_gen_rate_before_uncapped": "two_thirds",
+    "frame_gen_recommended": false,
+    "split_encode": "off",
+    "phase_lock": true,
+    "frame_gen_cap_fps": 0.0,
+    "frame_gen_lag_ms": 0.0,
+    "frame_gen_flow_scale": 0.5,
+    "frame_gen_perf": "fast",
+    "frame_gen_synthesis": "edge",
+    "frame_gen_hold_age": false,
+    "boundary_offset_ms": 0.0,
+    "running_start_ms": 2.0,
+    "intake_gate": true,
+    "intake_depth": 3,
+    "client_queue_drain": true,
+    "follow_client_rate": true,
+    "gpu_sched_class": 5,
+    "qp_map": false,
+    "vbv_strict": true,
+    "vd_sharpening": "off",
+    "vd_color_boost": 0.0,
+    "bitrate_headroom_pct": 50,
+    "send_pacing": "asap",
+    "pick_policy": "drain",
+    "codec": "h264",
+    "nvenc_quality_preset": "P1",
+    "nvenc_tuning_preset": "low-latency",
+    "nvenc_multi_pass": "disabled",
+    "entropy_coding": "cabac",
+    "slice_count": 8
+  },
+  "audio": {
+    "mute_pc": false,
+    "capture": "device"
+  },
+  "system": {
+    "power_plan": "ce9fa8b3-8e9e-42db-b4e1-e6297f6cdd7e"
+  },
+  "debug": false,
+  "headset": {},
+  "chroma": {
+    "asked": false
+  },
+  "controls": {
+    "recenter_key": "End"
+  },
+  "display": {
+    "gamma": 1.0,
+    "mirror_desktop": false,
+    "sharpening": 0.0,
+    "brightness": 0.0,
+    "saturation": 0.0,
+    "contrast": 0.0,
+    "sun_glasses": 0.0,
+    "exposure": 0.0,
+    "vibrance": 0.0,
+    "highlights": 0.0,
+    "shadows": 0.0,
+    "post_processing": true,
+    "height_mode": "auto"
+  }
+}

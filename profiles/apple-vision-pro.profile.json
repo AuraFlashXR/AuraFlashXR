@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "id": "apple-vision-pro-auraflashxr-visionos",
+  "display_name": "Apple Vision Pro (AuraFlashXR visionOS client)",
+  "author": "AuraFlashXR project (first profile; the knobs are the author's, tuned by A/B testing on stock AuraFlashXR + SteamVR)",
+  "match": {
+    "name_contains": [
+      "Apple Headset",
+      "Apple Vision Pro"
+    ],
+    "default_view_resolution": [
+      3776,
+      3648
+    ],
+    "supported_refresh_rates_include": [
+      90,
+      100
+    ]
+  },
+  "stream": {
+    "eye_resolution": [
+      3552,
+      3200
+    ],
+    "fps": 90,
+    "codec": "hevc",
+    "bit_depth": 10,
+    "full_range": true,
+    "encoding_gamma": 1.5,
+    "foveated": true,
+    "split_encode": 3,
+    "protocol": "udp"
+  },
+  "network": {
+    "default": "wifi-good",
+    "variants": [
+      {
+        "id": "wifi-good",
+        "label": "Wi-Fi 6/6E, 5 or 6 GHz, strong signal, headset on the same subnet as the PC (the author's link; 300 Mbps measured stable with foveated encoding)",
+        "bitrate_mbps": 300
+      }
+    ]
+  },
+  "session_overrides": {
+    "session_settings.audio.microphone.enabled": false,
+    "session_settings.connection.client_discovery.content.auto_trust_clients": false,
+    "session_settings.connection.dscp.set": true,
+    "session_settings.extra.logging.log_to_disk": false,
+    "session_settings.extra.logging.notification_level.variant": "Warning",
+    "session_settings.extra.open_setup_wizard": false,
+    "session_settings.extra.steamvr_launcher.open_close_steamvr_with_dashboard": true,
+    "session_settings.headset.controllers.content.emulation_mode.variant": "QuestPro",
+    "session_settings.headset.controllers.content.hand_skeleton.content.steamvr_input_2_0": false,
+    "session_settings.headset.emulation_mode.Custom.serial_number": "LHR-12345678",
+    "session_settings.headset.emulation_mode.variant": "QuestPro",
+    "session_settings.video.encoder_config.entropy_coding.variant": "Cabac",
+    "session_settings.video.encoder_config.nvenc.multi_pass.variant": "Disabled",
+    "session_settings.video.encoder_config.nvenc.quality_preset.variant": "P3",
+    "session_settings.video.encoder_config.server_overrides_use_10bit": true,
+    "session_settings.video.encoder_config.use_10bit": true,
+    "session_settings.video.max_buffering_frames": 1.5,
+    "session_settings.video.mediacodec_extra_options.content": [
+      [
+        "operating-rate",
+        {
+          "ty": {
+            "variant": "Int32"
+          },
+          "value": "2147483647"
+        }
+      ],
+      [
+        "priority",
+        {
+          "ty": {
+            "variant": "Int32"
+          },
+          "value": "0"
+        }
+      ],
+      [
+        "vendor.qti-ext-dec-low-latency.enable",
+        {
+          "ty": {
+            "variant": "Int32"
+          },
+          "value": "1"
+        }
+      ],
+      [
+        "vendor.apple.videotoolbox.low-latency",
+        {
+          "ty": {
+            "variant": "Int32"
+          },
+          "value": "1"
+        }
+      ]
+    ],
+    "session_settings.video.passthrough.content.RgbChromaKey.blue": 0,
+    "session_settings.video.passthrough.content.RgbChromaKey.distance_threshold": 50,
+    "session_settings.video.passthrough.content.RgbChromaKey.feathering": 0.19999999,
+    "session_settings.video.passthrough.content.RgbChromaKey.green": 255,
+    "session_settings.video.passthrough.content.RgbChromaKey.red": 0,
+    "session_settings.video.passthrough.content.variant": "RgbChromaKey",
+    "session_settings.video.passthrough.enabled": false,
+    "session_settings.video.preferred_codec.variant": "Hevc"
+  },
+  "notes": [
+    "Foveated encoding (AuraFlashXR's, centre 0.45 x 0.4, shift 0.4 / 0.1, edge ratio 4 x 5) is the recommended mode: measured on an RTX 5090 + Vision Pro at 100 Hz, encode 3.1 ms against 7.7 ms for the full 7104x3200 frame (spikes 14 ms against 18-33), headset decode about 1.5 ms lighter, NVENC under 10% against 54%, and 3x the bits per pixel at the same bitrate (0.39 against 0.12). The full frame showed no visible gain: the centre is native resolution in both modes and gets a third of the bits in full-frame mode.",
+    "Full frame (encode profile `full-split`) stays available for GPUs with 3 NVENC engines; it needs roughly 3x the bitrate to match the foveated centre quality, which Wi-Fi cannot carry.",
+    "The headset displays at 100 Hz while the stream is 90 fps: the host follows the headset's display rate.",
+    "Split encoding needs a GPU with several NVENC engines (RTX 4070 Ti and up, RTX 50 series).",
+    "session_overrides are AuraFlashXR session settings (dotted paths into config\\\\session.json): QuestPro emulation, NVENC preset P3 without multi-pass, CABAC, 10-bit HEVC, buffering 1.5 frames, no microphone, the Vision Pro's low-latency VideoToolbox option, chroma-key passthrough (optional, off by default; key colour #00FF00)."
+  ],
+  "verified": [
+    {
+      "gpu": "NVIDIA GeForce RTX 5090",
+      "client": "auraflashxr-visionos (AuraFlashXR 20.14.1 protocol)",
+      "date": "2026-10-12",
+      "result": "100 fps rendered and streamed in Cyberpunk 2077, total latency about 117 ms (AuraFlashXR's measure), 0 packets lost"
+    },
+    {
+      "gpu": "NVIDIA GeForce RTX 5090",
+      "client": "auraflashxr-visionos (AuraFlashXR 20.14.1 protocol)",
+      "date": "2026-10-12",
+      "result": "Foveated 4224x1664 at 100 Hz in Cyberpunk 2077: host encode 3.1 ms, headset decode 5.4 ms, total latency about 117 ms; full frame in the same session: encode 7.7 ms, decode 6.8 ms, no visible quality gain"
+    }
+  ]
+}

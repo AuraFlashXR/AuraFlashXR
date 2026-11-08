@@ -1,0 +1,88 @@
+#include "EncodePipeline.h"
+
+#include "EncodePipelineNvEnc.h"
+#include "EncodePipelineSW.h"
+#include "EncodePipelineVAAPI.h"
+#include "auraflashxr_server/Logger.h"
+#include "auraflashxr_server/Settings.h"
+#include "ffmpeg_helper.h"
+
+extern "C" {
+#include <libavcodec/avcodec.h>
+}
+
+void auraflashxr::EncodePipeline::SetParams(FfiDynamicEncoderParams params) {
+    if (params.updated) {
+        encoder_ctx->bit_rate = params.bitrate_bps / params.framerate * 60.0;
+        encoder_ctx->framerate = AVRational { 60, 1 };
+        encoder_ctx->rc_buffer_size = encoder_ctx->bit_rate / 60.0 * 1.1;
+        encoder_ctx->rc_max_rate = encoder_ctx->bit_rate;
+        encoder_ctx->rc_initial_buffer_occupancy = encoder_ctx->rc_buffer_size / 4 * 3;
+    }
+}
+
+std::unique_ptr<auraflashxr::EncodePipeline> auraflashxr::EncodePipeline::Create(
+    Renderer* render,
+    VkContext& vk_ctx,
+    VkFrame& input_frame,
+    VkImageCreateInfo& image_create_info,
+    uint32_t width,
+    uint32_t height
+) {
+    if (Settings::Instance().m_force_sw_encoding == false) {
+        if (vk_ctx.nvidia) {
+            try {
+                auto nvenc = std::make_unique<auraflashxr::EncodePipelineNvEnc>(
+                    render, vk_ctx, input_frame, image_create_info, width, height
+                );
+                Info("Using NvEnc encoder");
+                return nvenc;
+            } catch (std::exception& e) {
+                Error(
+                    "Failed to create NvEnc encoder: %s\nPlease make sure you have installed CUDA "
+                    "runtime.",
+                    e.what()
+                );
+            }
+        } else {
+            try {
+                auto vaapi = std::make_unique<auraflashxr::EncodePipelineVAAPI>(
+                    render, vk_ctx, input_frame, width, height
+                );
+                Info("Using VAAPI encoder");
+                return vaapi;
+            } catch (std::exception& e) {
+                Error(
+                    "Failed to create VAAPI encoder: %s\nPlease make sure you have installed VAAPI "
+                    "runtime.",
+                    e.what()
+                );
+            }
+        }
+    }
+    auto sw = std::make_unique<auraflashxr::EncodePipelineSW>(render, width, height);
+    Info("Using SW encoder");
+    return sw;
+}
+
+auraflashxr::EncodePipeline::~EncodePipeline() { avcodec_free_context(&encoder_ctx); }
+
+bool auraflashxr::EncodePipeline::GetEncoded(FramePacket& packet) {
+    av_packet_free(&encoder_packet);
+    encoder_packet = av_packet_alloc();
+    int err = avcodec_receive_packet(encoder_ctx, encoder_packet);
+    if (err != 0) {
+        av_packet_free(&encoder_packet);
+        if (err == AVERROR(EAGAIN)) {
+            return false;
+        }
+        throw auraflashxr::AvException("failed to encode", err);
+    }
+    packet.data = encoder_packet->data;
+    packet.size = encoder_packet->size;
+    packet.pts = encoder_packet->pts;
+    packet.isIDR = (encoder_packet->flags & AV_PKT_FLAG_KEY) != 0;
+    return true;
+}
+
+int auraflashxr::EncodePipeline::GetCodec() { return Settings::Instance().m_codec; }

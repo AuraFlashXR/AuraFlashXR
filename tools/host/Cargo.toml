@@ -1,0 +1,33 @@
+[package]
+name = "auraflashxr_host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+# Lives in tools/host in the harness repo; copied into <AuraFlashXR>/auraflashxr/host_harness on the builder
+# (the AuraFlashXR workspace globs auraflashxr/*), see tools/remote/stage8_host.ps1.
+# `telemetry` (default): per-frame traces (frame fates, the sent-frames CSVs). Release builds drop them: `cargo build --release
+# --no-default-features -p auraflashxr_host` (run.py build host --release), see docs/DEVELOPMENT.md.
+[features]
+default = ["telemetry"]
+telemetry = []
+# the simrig harness (headset-less synthetic head + viewer, see docs/DEVELOPMENT.md): off in normal and release builds
+simrig = ["telemetry"]
+
+[dependencies]
+auraflashxr_audio.workspace = true # device ids for the game-audio log (server_core does the capture itself)
+auraflashxr_common.workspace = true
+auraflashxr_events.workspace = true # AuraFlashXR's client statistics events (captured by the host's logger)
+auraflashxr_filesystem.workspace = true
+auraflashxr_packets.workspace = true
+auraflashxr_server_core.workspace = true
+auraflashxr_session.workspace = true
+auraflashxr_sockets.workspace = true # discovery constants (mDNS service type, UDP 9943 packet)
+
+serde_json = "1"
+mdns-sd = "0.13" # headset discovery (the Vision Pro client advertises itself over mDNS, like AuraFlashXR's server_core browses)
+
+[build-dependencies]
+cc = "1"
