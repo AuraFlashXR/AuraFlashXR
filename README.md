@@ -2,20 +2,58 @@
 
 # AuraFlashXR
 
-**Streaming PCVR ultra basse latence vers Meta Quest — driver SteamVR natif, runtime OpenXR maison.**
+**Streaming PCVR ultra basse latence vers Meta Quest — double architecture native : OpenXR Direct et driver SteamVR.**
+
+**⚡ PRE-RELEASE V0 DISPONIBLE ⚡**
 
 </div>
 
 ---
 
-## Le principe
+## La Pre-Release V0 est en ligne
 
-AuraFlashXR remplace la chaîne classique du streaming VR par un pipeline direct. Le casque n'est plus vu comme un périphérique réseau par SteamVR : notre driver le présente comme un **casque PCVR natif**, branché en direct.
+La première version publique d'AuraFlashXR est publiée. Elle est pensée pour une seule chose : repousser ce que le streaming PCVR peut donner sur Meta Quest. Pas d'habillage, pas de couche inutile — de la performance brute, un frame pacing stable et une image sans compromis.
 
-- **Driver SteamVR propriétaire** — `driver_auraflashxr.dll` déclare le Quest comme un HMD natif : plus de surcouche, plus de protocole intermédiaire, plus de runtime externe.
-- **Runtime OpenXR maison** — l'application n'emprunte ni VDXR ni un runtime tiers pour l'affichage : elle parle directement à l'API OpenXR du casque.
-- **Configuration débridée** — le driver récupère toute la configuration depuis le launcher. Là où les solutions fermées plafonnent le débit autour de 350 Mbps, AuraFlashXR laisse l'encodeur monter tant que la liaison tient.
-- **Frame Pacing SteamVR** — le rythme des images est calé sur le rafraîchissement des dalles du casque, image par image.
+Téléchargement : [Releases — AuraFlashXR V0](https://github.com/AuraFlashXR/AuraFlashXR/releases).
+
+---
+
+## Ce qu'embarque la V0
+
+### Double architecture native
+
+Deux chemins d'exécution, un seul objectif : supprimer les intermédiaires.
+
+- **Runtime OpenXR Direct** — l'application parle directement à l'API OpenXR du casque, sans couche de traduction. Le chemin d'exécution est le plus court possible.
+- **Driver SteamVR natif** — `driver_auraflashxr.dll` s'intègre directement à `vrserver` : SteamVR voit le Quest comme un casque PCVR natif, sans protocole intermédiaire ni runtime externe. Cette intégration native permet de jouer aux titres protégés par Anti-Cheat / BattlEye.
+
+### Streaming haut débit, latence ultra-basse
+
+Le pipeline NVENC est réglé pour tenir la cadence, pas pour économiser la bande passante.
+
+- **H.264 et HEVC jusqu'à près de 500 Mbps** en mode P1 low-latency.
+- **120 FPS verrouillés** avec un frame pacing calé sur le rafraîchissement des dalles.
+- **Latence compositeur PC réduite au dixième de milliseconde.**
+- Contrairement aux solutions fermées bridées autour de 350 Mbps, la configuration est entièrement pilotée depuis le launcher.
+
+### Dashboard Streamer et Toolbox AFXR
+
+Une interface Bento unifiée, lisible d'un coup d'œil.
+
+- **Télémétrie en temps réel** : FPS Jeu / Diffusé / Casque, débit, décomposition fine des latences (Encodage / Réseau / Décodage / VSync) et suivi des pertes de paquets.
+- **Toolbox rapide** : bascule **OpenXR / SteamVR** en un clic, gestion du pont USB **ADB Forwarder** et installation directe de l'**APK Quest**.
+
+### Post-processing temps réel et Frame Generation
+
+- **Génération d'images** à la volée (`Auto`, `1/3`, `1/2`, `2/3`) avec profilage automatique par jeu.
+- **Suite de post-processing en direct** : Gamma, Netteté (CAS), Contraste, Luminosité, Exposition, Saturation, Vibrance, Ombres et hautes lumières.
+- **Mode Sun Glasses** — `Light`, `Dark`, `TruNite` pour des noirs profonds.
+- **Presets instantanés** : Naturel, Éclatant OLED, Compétitif, Cinéma.
+
+### Confort et audio automatisé
+
+- **Routage audio automatique** via `AuraFlashXR-CABLE` et capture process loopback.
+- **Miroir du bureau** intégré entre les sessions.
 
 ---
 
@@ -41,34 +79,6 @@ Synchronisation 1:1, zéro saccade, charge machine minimale : la sensation d'un 
 
 ---
 
-## Ce que fait l'application
-
-### Launcher
-Un poste de pilotage unique : cartes Bento par outil, Toolbox AFXR, réglages visuels en direct.
-
-- Sélection du **fond d'image** parmi les visuels embarqués.
-- Sélection de la **police** avec aperçu réel de chaque famille et de chaque graisse.
-- **Langue** commutable à chaud (français / anglais).
-- Accès direct : Streamer, Performances, Configuration, Diagnostic, Assistant.
-
-### Streamer
-Le tableau de bord de diffusion, lisible d'un coup d'œil.
-
-- **INFORMATION EN DIRECT** : GPU et pilote, jeu détecté, casque, encodeur actif, résolution active, runtime OpenXR.
-- **FPS JEU / FPS DIFFUSÉ / FPS CASQUE** en tuiles séparées.
-- **Génération d'images** : activation, mode et suivi.
-- **Post-traitement** : réglages fins, profils (Naturel, Compétitif, Cinéma, Par défaut), modes de lunettes.
-- **Position / espace** et **bureau virtuel**.
-- Détection du casque en un clic.
-
-### Diffusion
-- **NVENC multi-slice** avec résolution d'encodage fovéée (FFR) : l'encodeur travaille sur une zone réduite autour du regard, le casque reçoit la pleine résolution.
-- Presets **H.264**, **HEVC**, **AV1** et **PyroWave**.
-- **Routage audio** automatique via câble virtuel, avec gestion du mute et de la perte de câble.
-- Déploiement **ADB** et APK Quest intégrés.
-
----
-
 ## Installation
 
 1. Télécharger `AuraFlashXR-V0.zip` depuis la page [Releases](https://github.com/AuraFlashXR/AuraFlashXR/releases).
@@ -87,7 +97,7 @@ Aucun chemin absolu n'est utilisé : l'application fonctionne depuis n'importe q
 |---|---|
 | Casques | Meta Quest 3 / 3S / Pro / 2 |
 | Encodeurs | NVENC (H.264, HEVC, AV1), PyroWave |
-| Runtime PC | SteamVR, OpenXR |
+| Runtime PC | OpenXR Direct, SteamVR |
 | Système | Windows 10 / 11, GPU NVIDIA |
 
 ---
