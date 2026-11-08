@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/AuraFlashXR/AuraFlashXR/main/docs/images/logo.png" width="220" alt="AuraFlashXR">
-
 # AuraFlashXR
 
 **Streaming PCVR ultra basse latence vers Meta Quest — driver SteamVR natif, runtime OpenXR maison.**
